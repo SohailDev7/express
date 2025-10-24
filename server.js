@@ -852,6 +852,51 @@ app.get('/api/reviews-stats', async (req, res) => {
   }
 });
 
+// Add this route to your server.js - DELETE single review by ID
+app.delete('/api/reviews/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate ID format (basic check for MongoDB-like ID)
+    if (!id || id.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid review ID format'
+      });
+    }
+
+    const result = await Review.findByIdAndDelete(id);
+    
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Review deleted successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid review ID format'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Server error while deleting review',
+      error: error.message
+    });
+  }
+});
+
 // ==================== UTILITY ROUTES ====================
 
 // Health check endpoint
