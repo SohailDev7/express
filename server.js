@@ -77,7 +77,16 @@ const movieSchema = new mongoose.Schema({
     default: Date.now
   }
 });
-// Review Schema (Add this after Movie schema)
+
+// Update the updatedAt field before saving
+movieSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+const Movie = mongoose.model('Movie', movieSchema);
+
+// Review Schema
 const reviewSchema = new mongoose.Schema({
   date: {
     type: String,
@@ -162,249 +171,7 @@ const reviewSchema = new mongoose.Schema({
 
 const Review = mongoose.model('Review', reviewSchema);
 
-// Reviews API Routes (Add these after the movie routes)
-
-// GET all reviews
-app.get('/api/reviews', async (req, res) => {
-  try {
-    const { sortBy = 'submittedAt', sortOrder = 'desc' } = req.query;
-    
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-    const reviews = await Review.find().sort(sortOptions);
-    
-    res.json({
-      success: true,
-      data: reviews,
-      count: reviews.length
-    });
-
-  } catch (error) {
-    console.error('Error fetching reviews:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching reviews',
-      error: error.message
-    });
-  }
-});
-
-// GET review by ID
-app.get('/api/reviews/:id', async (req, res) => {
-  try {
-    const review = await Review.findById(req.params.id);
-    
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: review
-    });
-
-  } catch (error) {
-    console.error('Error fetching review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching review',
-      error: error.message
-    });
-  }
-});
-
-// POST create new review
-app.post('/api/reviews', async (req, res) => {
-  try {
-    const {
-      date,
-      likes,
-      preferredTheme,
-      bugsFound,
-      improvements,
-      cutenessRating,
-      chorPercentage,
-      overallExperience,
-      wouldRecommend,
-      favoriteFeature,
-      musicTaste,
-      memoryRating,
-      designRating,
-      surpriseReaction,
-      reviewer,
-      theme
-    } = req.body;
-
-    // Validation
-    if (!date || cutenessRating === undefined || chorPercentage === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Date, cuteness rating, and chor percentage are required'
-      });
-    }
-
-    const newReview = new Review({
-      date,
-      likes: likes || '',
-      preferredTheme: preferredTheme || '',
-      bugsFound: bugsFound || '',
-      improvements: improvements || '',
-      cutenessRating: parseInt(cutenessRating),
-      chorPercentage: parseInt(chorPercentage),
-      overallExperience: overallExperience || '',
-      wouldRecommend: wouldRecommend || '',
-      favoriteFeature: favoriteFeature || '',
-      musicTaste: musicTaste || '',
-      memoryRating: parseInt(memoryRating),
-      designRating: parseInt(designRating),
-      surpriseReaction: surpriseReaction || '',
-      reviewer: reviewer || 'Prachi',
-      theme: theme || 'default',
-      submittedAt: new Date()
-    });
-
-    const savedReview = await newReview.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Review submitted successfully',
-      data: savedReview
-    });
-
-  } catch (error) {
-    console.error('Error creating review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error creating review',
-      error: error.message
-    });
-  }
-});
-
-// DELETE review
-app.delete('/api/reviews/:id', async (req, res) => {
-  try {
-    const deletedReview = await Review.findByIdAndDelete(req.params.id);
-
-    if (!deletedReview) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Review deleted successfully',
-      data: deletedReview
-    });
-
-  } catch (error) {
-    console.error('Error deleting review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting review',
-      error: error.message
-    });
-  }
-});
-
-// DELETE all reviews
-app.delete('/api/reviews', async (req, res) => {
-  try {
-    const result = await Review.deleteMany({});
-    
-    res.json({
-      success: true,
-      message: 'All reviews deleted successfully',
-      data: result
-    });
-
-  } catch (error) {
-    console.error('Error deleting all reviews:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting all reviews',
-      error: error.message
-    });
-  }
-});
-
-// GET reviews statistics
-app.get('/api/reviews-stats', async (req, res) => {
-  try {
-    const totalReviews = await Review.countDocuments();
-    
-    // Average ratings
-    const avgRatings = await Review.aggregate([
-      {
-        $group: {
-          _id: null,
-          avgCuteness: { $avg: '$cutenessRating' },
-          avgChor: { $avg: '$chorPercentage' },
-          avgMemory: { $avg: '$memoryRating' },
-          avgDesign: { $avg: '$designRating' }
-        }
-      }
-    ]);
-
-    // Recommendation distribution
-    const recommendationStats = await Review.aggregate([
-      {
-        $group: {
-          _id: '$wouldRecommend',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Theme preference distribution
-    const themeStats = await Review.aggregate([
-      {
-        $group: {
-          _id: '$preferredTheme',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        totalReviews,
-        averageRatings: avgRatings.length > 0 ? {
-          cuteness: Math.round(avgRatings[0].avgCuteness * 10) / 10,
-          chor: Math.round(avgRatings[0].avgChor * 10) / 10,
-          memory: Math.round(avgRatings[0].avgMemory * 10) / 10,
-          design: Math.round(avgRatings[0].avgDesign * 10) / 10
-        } : {},
-        recommendationStats,
-        themeStats
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching review stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching review statistics',
-      error: error.message
-    });
-  }
-});
-// Update the updatedAt field before saving
-movieSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
-
-const Movie = mongoose.model('Movie', movieSchema);
-
-// API Routes
+// ==================== MOVIE ROUTES ====================
 
 // GET all movies with filtering and search
 app.get('/api/movies', async (req, res) => {
@@ -850,6 +617,274 @@ app.post('/api/movies/bulk', async (req, res) => {
   }
 });
 
+// ==================== REVIEW ROUTES ====================
+
+// GET all reviews
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { sortBy = 'submittedAt', sortOrder = 'desc' } = req.query;
+    
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    const reviews = await Review.find().sort(sortOptions);
+    
+    res.json({
+      success: true,
+      data: reviews,
+      count: reviews.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching reviews',
+      error: error.message
+    });
+  }
+});
+
+// GET review by ID
+app.get('/api/reviews/:id', async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id);
+    
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: review
+    });
+
+  } catch (error) {
+    console.error('Error fetching review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching review',
+      error: error.message
+    });
+  }
+});
+
+// POST create new review
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const {
+      date,
+      likes,
+      preferredTheme,
+      bugsFound,
+      improvements,
+      cutenessRating,
+      chorPercentage,
+      overallExperience,
+      wouldRecommend,
+      favoriteFeature,
+      musicTaste,
+      memoryRating,
+      designRating,
+      surpriseReaction,
+      reviewer,
+      theme
+    } = req.body;
+
+    // Validation
+    if (!date || cutenessRating === undefined || chorPercentage === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date, cuteness rating, and chor percentage are required'
+      });
+    }
+
+    const newReview = new Review({
+      date,
+      likes: likes || '',
+      preferredTheme: preferredTheme || '',
+      bugsFound: bugsFound || '',
+      improvements: improvements || '',
+      cutenessRating: parseInt(cutenessRating),
+      chorPercentage: parseInt(chorPercentage),
+      overallExperience: overallExperience || '',
+      wouldRecommend: wouldRecommend || '',
+      favoriteFeature: favoriteFeature || '',
+      musicTaste: musicTaste || '',
+      memoryRating: parseInt(memoryRating),
+      designRating: parseInt(designRating),
+      surpriseReaction: surpriseReaction || '',
+      reviewer: reviewer || 'Prachi',
+      theme: theme || 'default',
+      submittedAt: new Date()
+    });
+
+    const savedReview = await newReview.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Review submitted successfully',
+      data: savedReview
+    });
+
+  } catch (error) {
+    console.error('Error creating review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating review',
+      error: error.message
+    });
+  }
+});
+
+// DELETE review
+app.delete('/api/reviews/:id', async (req, res) => {
+  try {
+    const deletedReview = await Review.findByIdAndDelete(req.params.id);
+
+    if (!deletedReview) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Review deleted successfully',
+      data: deletedReview
+    });
+
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting review',
+      error: error.message
+    });
+  }
+});
+
+// DELETE all reviews
+app.delete('/api/reviews', async (req, res) => {
+  try {
+    const result = await Review.deleteMany({});
+    
+    res.json({
+      success: true,
+      message: 'All reviews deleted successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error deleting all reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting all reviews',
+      error: error.message
+    });
+  }
+});
+
+// GET reviews statistics
+app.get('/api/reviews-stats', async (req, res) => {
+  try {
+    const totalReviews = await Review.countDocuments();
+    
+    // Average ratings
+    const avgRatings = await Review.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgCuteness: { $avg: '$cutenessRating' },
+          avgChor: { $avg: '$chorPercentage' },
+          avgMemory: { $avg: '$memoryRating' },
+          avgDesign: { $avg: '$designRating' }
+        }
+      }
+    ]);
+
+    // Recommendation distribution
+    const recommendationStats = await Review.aggregate([
+      {
+        $group: {
+          _id: '$wouldRecommend',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Theme preference distribution
+    const themeStats = await Review.aggregate([
+      {
+        $group: {
+          _id: '$preferredTheme',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalReviews,
+        averageRatings: avgRatings.length > 0 ? {
+          cuteness: Math.round(avgRatings[0].avgCuteness * 10) / 10,
+          chor: Math.round(avgRatings[0].avgChor * 10) / 10,
+          memory: Math.round(avgRatings[0].avgMemory * 10) / 10,
+          design: Math.round(avgRatings[0].avgDesign * 10) / 10
+        } : {},
+        recommendationStats,
+        themeStats
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching review stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching review statistics',
+      error: error.message
+    });
+  }
+});
+
+// ==================== UTILITY ROUTES ====================
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is running healthy!',
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    endpoints: {
+      movies: '/api/movies',
+      reviews: '/api/reviews',
+      stats: '/api/stats',
+      reviewStats: '/api/reviews-stats'
+    }
+  });
+});
+
+// Serve frontend (if you have one)
+app.get('/', (req, res) => {
+  res.json({
+    message: '🎬 Prachi Movie Watchlist & Review API',
+    version: '1.0.0',
+    endpoints: {
+      movies: '/api/movies',
+      reviews: '/api/reviews',
+      stats: '/api/stats',
+      reviewStats: '/api/reviews-stats',
+      health: '/api/health'
+    }
+  });
+});
+
 // Utility function to validate URLs
 function isValidUrl(string) {
   try {
@@ -859,29 +894,6 @@ function isValidUrl(string) {
     return false;
   }
 }
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is running healthy!',
-    timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
-
-// Serve frontend (if you have one)
-app.get('/', (req, res) => {
-  res.json({
-    message: '🎬 Prachi Movie Watchlist API',
-    version: '1.0.0',
-    endpoints: {
-      movies: '/api/movies',
-      stats: '/api/stats',
-      health: '/api/health'
-    }
-  });
-});
 
 // Error handling middleware
 app.use((error, req, res, next) => {
@@ -897,7 +909,14 @@ app.use((error, req, res, next) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Endpoint not found'
+    message: 'Endpoint not found',
+    requestedUrl: req.originalUrl,
+    availableEndpoints: {
+      movies: '/api/movies',
+      reviews: '/api/reviews',
+      stats: '/api/stats',
+      health: '/api/health'
+    }
   });
 });
 
@@ -906,6 +925,7 @@ app.listen(PORT, () => {
   console.log(`🎬 Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🎥 Movies API: http://localhost:${PORT}/api/movies`);
+  console.log(`📝 Reviews API: http://localhost:${PORT}/api/reviews`);
 });
 
 // Graceful shutdown
