@@ -873,7 +873,7 @@ app.get('/api/health', (req, res) => {
 // Serve frontend (if you have one)
 app.get('/', (req, res) => {
   res.json({
-    message: '🎬 Prachi Movie Watchlist & Review API',
+    message: '🎬 Prachi Movie Watchlist & Review API. SERVER RUNNING HEALTHY',
     version: '1.0.0',
     endpoints: {
       movies: '/api/movies',
