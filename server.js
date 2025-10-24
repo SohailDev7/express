@@ -77,7 +77,325 @@ const movieSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+// Review Schema (Add this after Movie schema)
+const reviewSchema = new mongoose.Schema({
+  date: {
+    type: String,
+    required: true
+  },
+  likes: {
+    type: String,
+    default: ''
+  },
+  preferredTheme: {
+    type: String,
+    default: ''
+  },
+  bugsFound: {
+    type: String,
+    default: ''
+  },
+  improvements: {
+    type: String,
+    default: ''
+  },
+  cutenessRating: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100
+  },
+  chorPercentage: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100
+  },
+  overallExperience: {
+    type: String,
+    default: ''
+  },
+  wouldRecommend: {
+    type: String,
+    enum: ['yes', 'maybe', 'no', ''],
+    default: ''
+  },
+  favoriteFeature: {
+    type: String,
+    enum: ['animations', 'design', 'interactivity', 'content', ''],
+    default: ''
+  },
+  musicTaste: {
+    type: String,
+    enum: ['bollywood', 'english', 'kpop', 'mixed', ''],
+    default: ''
+  },
+  memoryRating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  designRating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  surpriseReaction: {
+    type: String,
+    default: ''
+  },
+  reviewer: {
+    type: String,
+    default: 'Prachi'
+  },
+  theme: {
+    type: String,
+    default: 'default'
+  },
+  submittedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
+const Review = mongoose.model('Review', reviewSchema);
+
+// Reviews API Routes (Add these after the movie routes)
+
+// GET all reviews
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { sortBy = 'submittedAt', sortOrder = 'desc' } = req.query;
+    
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    const reviews = await Review.find().sort(sortOptions);
+    
+    res.json({
+      success: true,
+      data: reviews,
+      count: reviews.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching reviews',
+      error: error.message
+    });
+  }
+});
+
+// GET review by ID
+app.get('/api/reviews/:id', async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id);
+    
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: review
+    });
+
+  } catch (error) {
+    console.error('Error fetching review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching review',
+      error: error.message
+    });
+  }
+});
+
+// POST create new review
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const {
+      date,
+      likes,
+      preferredTheme,
+      bugsFound,
+      improvements,
+      cutenessRating,
+      chorPercentage,
+      overallExperience,
+      wouldRecommend,
+      favoriteFeature,
+      musicTaste,
+      memoryRating,
+      designRating,
+      surpriseReaction,
+      reviewer,
+      theme
+    } = req.body;
+
+    // Validation
+    if (!date || cutenessRating === undefined || chorPercentage === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date, cuteness rating, and chor percentage are required'
+      });
+    }
+
+    const newReview = new Review({
+      date,
+      likes: likes || '',
+      preferredTheme: preferredTheme || '',
+      bugsFound: bugsFound || '',
+      improvements: improvements || '',
+      cutenessRating: parseInt(cutenessRating),
+      chorPercentage: parseInt(chorPercentage),
+      overallExperience: overallExperience || '',
+      wouldRecommend: wouldRecommend || '',
+      favoriteFeature: favoriteFeature || '',
+      musicTaste: musicTaste || '',
+      memoryRating: parseInt(memoryRating),
+      designRating: parseInt(designRating),
+      surpriseReaction: surpriseReaction || '',
+      reviewer: reviewer || 'Prachi',
+      theme: theme || 'default',
+      submittedAt: new Date()
+    });
+
+    const savedReview = await newReview.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Review submitted successfully',
+      data: savedReview
+    });
+
+  } catch (error) {
+    console.error('Error creating review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating review',
+      error: error.message
+    });
+  }
+});
+
+// DELETE review
+app.delete('/api/reviews/:id', async (req, res) => {
+  try {
+    const deletedReview = await Review.findByIdAndDelete(req.params.id);
+
+    if (!deletedReview) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Review deleted successfully',
+      data: deletedReview
+    });
+
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting review',
+      error: error.message
+    });
+  }
+});
+
+// DELETE all reviews
+app.delete('/api/reviews', async (req, res) => {
+  try {
+    const result = await Review.deleteMany({});
+    
+    res.json({
+      success: true,
+      message: 'All reviews deleted successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error deleting all reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting all reviews',
+      error: error.message
+    });
+  }
+});
+
+// GET reviews statistics
+app.get('/api/reviews-stats', async (req, res) => {
+  try {
+    const totalReviews = await Review.countDocuments();
+    
+    // Average ratings
+    const avgRatings = await Review.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgCuteness: { $avg: '$cutenessRating' },
+          avgChor: { $avg: '$chorPercentage' },
+          avgMemory: { $avg: '$memoryRating' },
+          avgDesign: { $avg: '$designRating' }
+        }
+      }
+    ]);
+
+    // Recommendation distribution
+    const recommendationStats = await Review.aggregate([
+      {
+        $group: {
+          _id: '$wouldRecommend',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Theme preference distribution
+    const themeStats = await Review.aggregate([
+      {
+        $group: {
+          _id: '$preferredTheme',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalReviews,
+        averageRatings: avgRatings.length > 0 ? {
+          cuteness: Math.round(avgRatings[0].avgCuteness * 10) / 10,
+          chor: Math.round(avgRatings[0].avgChor * 10) / 10,
+          memory: Math.round(avgRatings[0].avgMemory * 10) / 10,
+          design: Math.round(avgRatings[0].avgDesign * 10) / 10
+        } : {},
+        recommendationStats,
+        themeStats
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching review stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching review statistics',
+      error: error.message
+    });
+  }
+});
 // Update the updatedAt field before saving
 movieSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
