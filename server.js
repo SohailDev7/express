@@ -64,6 +64,10 @@ const movieSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  watchLink: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -189,7 +193,8 @@ app.post('/api/movies', async (req, res) => {
       myLetterboxdReview,
       watched,
       posterUrl,
-      myReview
+      myReview,
+      watchLink
     } = req.body;
 
     // Validation
@@ -208,10 +213,18 @@ app.post('/api/movies', async (req, res) => {
     }
 
     // Validate poster URL if provided
-    if (posterUrl && !isValidUrl(posterUrl)) {
+    if (posterUrl && posterUrl.trim() !== '' && !isValidUrl(posterUrl)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid poster URL format'
+      });
+    }
+
+    // Validate watch link URL if provided
+    if (watchLink && watchLink.trim() !== '' && !isValidUrl(watchLink)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid watch link URL format'
       });
     }
 
@@ -224,7 +237,8 @@ app.post('/api/movies', async (req, res) => {
       myLetterboxdReview: myLetterboxdReview?.trim() || '',
       watched: watched || 'not watched',
       posterUrl: posterUrl?.trim() || '',
-      myReview: myReview?.trim() || ''
+      myReview: myReview?.trim() || '',
+      watchLink: watchLink?.trim() || ''
     });
 
     const savedMovie = await newMovie.save();
@@ -257,7 +271,8 @@ app.put('/api/movies/:id', async (req, res) => {
       myLetterboxdReview,
       watched,
       posterUrl,
-      myReview
+      myReview,
+      watchLink
     } = req.body;
 
     // Validation
@@ -269,10 +284,18 @@ app.put('/api/movies/:id', async (req, res) => {
     }
 
     // Validate poster URL if provided
-    if (posterUrl && !isValidUrl(posterUrl)) {
+    if (posterUrl && posterUrl.trim() !== '' && !isValidUrl(posterUrl)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid poster URL format'
+      });
+    }
+
+    // Validate watch link URL if provided
+    if (watchLink && watchLink.trim() !== '' && !isValidUrl(watchLink)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid watch link URL format'
       });
     }
 
@@ -286,6 +309,7 @@ app.put('/api/movies/:id', async (req, res) => {
       ...(watched && { watched }),
       ...(posterUrl !== undefined && { posterUrl: posterUrl.trim() }),
       ...(myReview !== undefined && { myReview: myReview.trim() }),
+      ...(watchLink !== undefined && { watchLink: watchLink.trim() }),
       updatedAt: Date.now()
     };
 
